@@ -6,7 +6,7 @@ import webbrowser
 import traceback
 import socket
 
-import django.conf
+import django
 
 from cactus import ui as ui_module
 from cactus.config.router import ConfigRouter
@@ -62,6 +62,9 @@ class Site(SiteCompatibilityLayer):
         # Verify our location looks correct
         self.path = path
         self.verify_path()
+
+        # Add site folder to system path
+        sys.path[0:0] = [self.path]
 
         # Load Managers
         if ui is None:
@@ -140,6 +143,19 @@ class Site(SiteCompatibilityLayer):
         settings = {
             "TEMPLATE_DIRS": [self.template_path, self.page_path],
             "INSTALLED_APPS": ['django_markwhat'],
+            "TEMPLATES": [
+                {
+                    "BACKEND": 'django.template.backends.django.DjangoTemplates',
+                    "DIRS": [self.template_path, self.page_path],
+                    "APP_DIRS": True,
+                    "OPTIONS": {
+                        "builtins": [
+                            'cactus.template_tags',
+                            'plugins.template_tags',
+                        ],
+                    }
+                }
+            ]
         }
 
         if self.locale is not None:
@@ -151,12 +167,7 @@ class Site(SiteCompatibilityLayer):
             })
 
         django.conf.settings.configure(**settings)
-
-        # - Importing here instead of the top-level makes it work on Python 3.x (!)
-        # - loading add_to_builtins from loader implictly loads the loader_tags built-in
-        # - Injecting our tags using add_to_builtins ensures that Cactus tags don't require an import
-        from django.template.loader import add_to_builtins
-        add_to_builtins('cactus.template_tags')
+        django.setup()
 
     def verify_path(self):
         """
