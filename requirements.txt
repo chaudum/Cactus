@@ -1,4 +1,4 @@
-Django>=1.6,<1.7
+Django>=1.9,<1.10
 django-markwhat>=1.4,<2
 markdown2
 argparse
@@ -8,3 +8,5 @@ tornado>=3.2
 colorlog
 colorama
 six>=1.9.0
+python-frontmatter
+lesscpy

@@ -1,6 +1,7 @@
 import os
 import io
 import logging
+import frontmatter
 
 from six.moves import urllib
 
@@ -67,44 +68,44 @@ class Page(PageCompatibilityLayer, ResourceURLHelperMixin):
         return os.path.join(self.site.build_path, self.build_path)
 
     def data(self):
+        data = ""
         with io.FileIO(self.full_source_path, 'r') as f:
             try:
-                return f.read().decode('utf-8')
+                data = f.read().decode('utf-8')
             except:
                 logger.warning("Template engine could not process page: %s", self.path, exc_info=True)
-                return u""
+        return data
 
-    def context(self, data=None, extra=None):
+    def parse(self):
+        data = self.data()
+        return self._parse(data)
+
+    def _parse(self, data):
+        if not self.is_html():
+            return {}, data
+        page = frontmatter.loads(data)
+        return (page.metadata, page.content)
+
+    def context(self, ctx, extra={}):
         """
         The page context.
         """
-        if extra is None:
-            extra = {}
 
-        context = {'__CACTUS_CURRENT_PAGE__': self,}
-
-        page_context, data = self.parse_context(data or self.data())
-
+        context = {'__CACTUS_CURRENT_PAGE__': self}
         context.update(self.site.context())
         context.update(extra)
-        context.update(page_context)
-
+        context.update(ctx)
         return Context(context)
 
     def render(self):
         """
         Takes the template data with context and renders it to the final output file.
         """
-
-        data = self.data()
-        context = self.context(data=data)
-
-        # This is not very nice, but we already used the header context in the
-        # page context, so we don't need it anymore.
-        page_context, data = self.parse_context(data)
+        ctx, data = self.parse()
 
         context, data = self.site.plugin_manager.preBuildPage(
-            self.site, self, context, data)
+            self.site, self, self.context(ctx), data
+        )
 
         return Template(data).render(context)
 
@@ -127,38 +128,6 @@ class Page(PageCompatibilityLayer, ResourceURLHelperMixin):
                 f.write(data.encode('utf-8'))
 
             self.site.plugin_manager.postBuildPage(self)
-
-    def parse_context(self, data, splitChar=':'):
-        """
-        Values like
-
-        name: koen
-        age: 29
-
-        will be converted in a dict: {'name': 'koen', 'age': '29'}
-        """
-
-        if not self.is_html():
-            return {}, data
-
-        values = {}
-        lines = data.splitlines()
-        if not lines:
-            return {}, ''
-
-        for i, line in enumerate(lines):
-
-            if not line:
-                continue
-
-            elif splitChar in line:
-                line = line.split(splitChar)
-                values[line[0].strip()] = (splitChar.join(line[1:])).strip()
-
-            else:
-                break
-
-        return values, '\n'.join(lines[i:])
 
     def __repr__(self):
         return '<Page: {0}>'.format(self.source_path)
