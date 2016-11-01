@@ -114,7 +114,7 @@ def parse_arguments(cli, args):
     for subparser in config_parsers:
         subparser.add_argument('-c', '--config', action="append",
                                help='Add a config file you want to use')
-        subparser.add_argument('-d', '--path', default=os.getcwd(),
+        subparser.add_argument('-d', '--path', default=os.getcwd(), type=os.path.abspath,
                                help='The path to the Cactus project')
 
     for subparser in all_parsers:
